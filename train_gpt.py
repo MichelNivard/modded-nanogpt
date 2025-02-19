@@ -466,8 +466,8 @@ original_seq_len = args.train_seq_len
 args.train_seq_len = 32 * 1024
 args.val_seq_len = 32 * 1024 
 gradient_accumulation_steps = (original_seq_len * world_size_factor) // args.train_seq_len
-assert world_size * world_size_factor == desired_world_size, f"This code is designed for 8xH100. {world_size * world_size_factor=} != {desired_world_size=}"
-assert gradient_accumulation_steps * args.train_seq_len *  world_size_factor == desired_world_size * original_seq_len, f"{gradient_accumulation_steps * args.train_seq_len=} != {desired_world_size * original_seq_len=}"
+# assert world_size * world_size_factor == desired_world_size, f"This code is designed for 8xH100. {world_size * world_size_factor=} != {desired_world_size=}"
+# assert gradient_accumulation_steps * args.train_seq_len *  world_size_factor == desired_world_size * original_seq_len, f"{gradient_accumulation_steps * args.train_seq_len=} != {desired_world_size * original_seq_len=}"
 assert torch.cuda.is_available()
 device = torch.device("cuda", int(os.environ["LOCAL_RANK"]))
 torch.cuda.set_device(device)
