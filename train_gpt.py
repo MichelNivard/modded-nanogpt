@@ -459,7 +459,15 @@ args = Hyperparameters()
 # torchrun sets these env variables
 rank = int(os.environ["RANK"])
 world_size = int(os.environ["WORLD_SIZE"])
-assert world_size == 1 # this code is designed for 8xH100
+# changes for running on 2x4090
+desired_world_size = 8
+world_size_factor = desired_world_size // world_size
+original_seq_len = args.train_seq_len
+args.train_seq_len = 32 * 1024
+args.val_seq_len = 32 * 1024 
+gradient_accumulation_steps = (original_seq_len * world_size_factor) // args.train_seq_len
+assert world_size * world_size_factor == desired_world_size, f"This code is designed for 8xH100. {world_size * world_size_factor=} != {desired_world_size=}"
+assert gradient_accumulation_steps * args.train_seq_len *  world_size_factor == desired_world_size * original_seq_len, f"{gradient_accumulation_steps * args.train_seq_len=} != {desired_world_size * original_seq_len=}"
 assert torch.cuda.is_available()
 device = torch.device("cuda", int(os.environ["LOCAL_RANK"]))
 torch.cuda.set_device(device)
@@ -612,10 +620,10 @@ for step in range(train_steps + 1):
             torch.save(log, f"logs/{run_id}/state_step{step:06d}.pt")
         # the last step only has the validation loop, so break to avoid training
         break
-
     # --------------- TRAINING SECTION -----------------
-    inputs, targets = next(train_loader)
-    model(inputs, targets, get_window_size_blocks(step)).backward()
+    for _ in range(gradient_accumulation_steps):
+        inputs, targets = next(train_loader)
+        model(inputs, targets, get_window_size_blocks(step)).backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
     # set optimization hyperparameters
